@@ -12,6 +12,8 @@ __pycache__/
 # Google Cloud credentials
 *-credentials.json
 service-account*.json
+*-[a-f0-9]*.json
+geoeval-*.json
 
 # Results (标注结果文件不上传到GitHub，由标注者本地生成)
 human_eval_results/
