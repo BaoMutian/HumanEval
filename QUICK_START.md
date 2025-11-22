@@ -70,15 +70,15 @@ GSHEET_NAME = "HumanEval_Results"
 
 [gcp_service_account]
 type = "service_account"
-project_id = "your-project-id"
-private_key_id = "your-private-key-id"
-private_key = "-----BEGIN PRIVATE KEY-----\nYour-Private-Key-Here\n-----END PRIVATE KEY-----\n"
-client_email = "your-service-account@your-project.iam.gserviceaccount.com"
-client_id = "your-client-id"
+project_id = "geoeval-reason-humaneval"
+private_key_id = "27b6ffa5e70ace06a975577903c53b0f70e53db0"
+private_key = "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDO/7aWWEG8uW+8\nQGwPMCE8qSszd/RccLYsqAEQeF0G9HfWMUproeYM7Zc0MT81Mx0x57kRoOd+8YWP\nc6X/zfBTa2lPJ39YjKMNxOf8NUvgkIIdtgyl7U/d/Bxa3FBTupJBe/qWK1Us4R4E\nI4HwW+VPqPBYgalrm8TNS3FOuraLY/WJFr6UHHgVabgEdeoPnHqDFDOBZeDevZUj\n60hUGLdmxPG54j4GdgfkrbxpfQq9PeVd1a1hKmg09kax5adGPr56l5TJDKoRR/pR\nIwPIMIFy7CaIUhgydVKW7UDVNg5heB0RnYyPitY6uKz05iRyyJUDXZ91GcAGcTHy\nI6zIKU6DAgMBAAECgf9o8gqb5FzKh3tk4TP4XkD/td2H7CPaqXvDgwa0iKQMvXmA\nCflJ2mwOGaCsE1P0TiM448rC75LyeqG8NdExNnWVH8svrPvfJuoIBK+YvxoHehMB\n3C186fkLv9puywn/JyBBhpWZxrk6yb32UvFw9za6pBln/6+vwfLPXELwzIczlwf9\nGjw38xOcrXBkTjzovjmXC0YtOtF7WJBf1xllGl60MhhsCzwA34f0rGDNLWQNRWZb\njnkpckIjkKUq7ajchigxeZ/eCBZvuH8rLaz1jCK767j8QcAJp4oYDB/Mi8yRnr7w\nVXaxO/xZqMCP9AA3MgcRPnWHxMDH6J5sZ1o+ivUCgYEA9Uu9Hz7TIHrtUtRRD3kM\nAPM6RFB6FL5/HcXS4FWitvo59KldSyqCPVQF8sUClsRa18SNTmse8j/lRbUn/4QW\ntReGvZzPAW5R5Q8WJTlFU3CLKazwLnit7yB256q3CHxaapUhyGhS14CFec/5y2ou\nEMmR+ajxusB476VY8KWKIO0CgYEA2AgmP3u77GYxaBLWuDAp5j8esibcSFIOuE8T\n4JQ4TXl09MiZ/JidUaGG1rxK3PLnolNZHraTvw4Bnlphe8MRECXqOpz/K9VRU9ya\nTKWC7pdoQ1Ex85RVBwBL3HGMglgGdRkZ6SHNQsSST06rrKfSod3D7bHgAmh0Th2Z\ntRlQ7y8CgYB7Vqb0pAlSxpy4TkuoBQx1GdfNa83GynZuSP8cj9KuQKmNjO99ERXF\nso7/H/KKTpcC8TDAInrAAkLNRyaigw9L5VV51/P6WzdQfsJ62w4xw2AmB3AJXeLP\nXzqKiDtaR/TKrMv80f/9ngD/XATVNEGPbVs59qn9ZjQpA7Hx5rrKjQKBgQCw6uOf\n484/yGU3zQ3JY7A8nn6d+VM3avQhHqmxptEBKbGNcechxT45BuZtX2CT1924wzdd\n/rm6olbS/0OMXnDP360V+VLD6/uhiS1YDcfPa3F4h7s3tsd3Z1e5HcirSjlnlnnw\nwbzerCsCBfRz/jByXTJCrAQ/FJoDCxzBAg2VAwKBgQCNitbQikOGpZkCU9TmYJ3s\nySqQ4MD1ozdc+84pYqXSIJNNMWpQbXHdqOHtd7o1Cqg9v5ytB7dRTTmNzUl0Q/gA\n7f+/br3TEkIIHWJbMe7T2tGjY31JT9j2i2kpnx1+zrxxfHGregYjM4f6H9FNpXxw\n9R6iutad3FajN5yMp/2Y5A==\n-----END PRIVATE KEY-----\n"
+client_email = "humaneval-annotator@geoeval-reason-humaneval.iam.gserviceaccount.com"
+client_id = "108544180731681786650"
 auth_uri = "https://accounts.google.com/o/oauth2/auth"
 token_uri = "https://oauth2.googleapis.com/token"
 auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
-client_x509_cert_url = "your-cert-url"
+client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/humaneval-annotator%40geoeval-reason-humaneval.iam.gserviceaccount.com"
 ```
 
 4. 点击 **"Save"**
