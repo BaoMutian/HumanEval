@@ -4,16 +4,70 @@ import os
 import html
 import pandas as pd
 from judge_prompt import CHECKLISTS
+from datetime import datetime
+
+# Try to import Google Sheets libraries
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    GSHEETS_AVAILABLE = True
+except ImportError:
+    GSHEETS_AVAILABLE = False
 
 # Configuration
 DATA_FILE = "100_llama3.1-70b-instruct_human_eval_gpt-4o.jsonl"
 FULL_DATASET_FILE = "geoqa_reason/full_dataset.jsonl"
-OUTPUT_DIR = "human_eval_results"  # Directory to store results
+OUTPUT_DIR = "human_eval_results"  # Directory to store results (local mode)
+
+# Google Sheets configuration
+USE_GSHEETS = os.getenv("USE_GSHEETS", "false").lower() == "true"
+GSHEET_NAME = os.getenv("GSHEET_NAME", "HumanEval_Results")
 
 st.set_page_config(layout="wide", page_title="GeoQA Human Evaluation")
 
-# Ensure output directory exists
+# Ensure output directory exists (for local mode)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# Initialize Google Sheets connection
+
+
+@st.cache_resource
+def init_gsheets():
+    """Initialize Google Sheets connection"""
+    if not USE_GSHEETS or not GSHEETS_AVAILABLE:
+        return None
+
+    try:
+        # Try to use Streamlit secrets
+        if "gcp_service_account" in st.secrets:
+            credentials = Credentials.from_service_account_info(
+                st.secrets["gcp_service_account"],
+                scopes=[
+                    "https://www.googleapis.com/auth/spreadsheets",
+                    "https://www.googleapis.com/auth/drive"
+                ]
+            )
+            client = gspread.authorize(credentials)
+
+            # Try to open existing sheet or create new one
+            try:
+                sheet = client.open(GSHEET_NAME)
+            except gspread.exceptions.SpreadsheetNotFound:
+                sheet = client.create(GSHEET_NAME)
+                # Share with everyone (or specific emails)
+                sheet.share('', perm_type='anyone', role='writer')
+
+            return sheet
+        else:
+            st.warning(
+                "⚠️ Google Sheets credentials not found. Using local storage.")
+            return None
+    except Exception as e:
+        st.error(f"Google Sheets initialization error: {e}")
+        return None
+
+
+gsheet = init_gsheets() if USE_GSHEETS else None
 
 # Load full dataset questions
 
@@ -68,7 +122,7 @@ data = load_data()
 if 'annotator_name' not in st.session_state:
     st.session_state.annotator_name = ""
 
-# Function to get output file for annotator
+# Function to get output file for annotator (local mode)
 
 
 def get_output_file(annotator_name):
@@ -80,21 +134,67 @@ def get_output_file(annotator_name):
     safe_name = safe_name.replace(' ', '_')
     return os.path.join(OUTPUT_DIR, f"human_eval_results_{safe_name}.jsonl")
 
+# Function to get or create worksheet for annotator (Google Sheets mode)
+
+
+def get_or_create_worksheet(annotator_name):
+    """Get or create a worksheet for the annotator in Google Sheets"""
+    if not gsheet:
+        return None
+
+    try:
+        # Clean worksheet name (max 100 chars, no special chars)
+        safe_name = "".join(c for c in annotator_name if c.isalnum() or c in (
+            ' ', '_', '-'))[:100].strip()
+
+        try:
+            worksheet = gsheet.worksheet(safe_name)
+        except gspread.exceptions.WorksheetNotFound:
+            # Create new worksheet with headers
+            worksheet = gsheet.add_worksheet(
+                title=safe_name, rows=1000, cols=10)
+            worksheet.append_row([
+                'id', 'annotator_name', 'reason_score', 'answer_score',
+                'total_score', 'task_type', 'timestamp', 'response',
+                'ground_truth', 'question'
+            ])
+
+        return worksheet
+    except Exception as e:
+        st.error(f"Error accessing Google Sheets: {e}")
+        return None
+
 # Function to load processed IDs for current annotator
 
 
 def load_processed_ids(annotator_name):
+    """Load processed IDs from Google Sheets or local file"""
     processed_ids = set()
-    output_file = get_output_file(annotator_name)
-    if output_file and os.path.exists(output_file):
-        with open(output_file, 'r', encoding='utf-8') as f:
-            for line in f:
-                if line.strip():
-                    try:
-                        rec = json.loads(line)
-                        processed_ids.add(rec.get("id"))
-                    except:
-                        pass
+
+    if USE_GSHEETS and gsheet:
+        # Load from Google Sheets
+        try:
+            worksheet = get_or_create_worksheet(annotator_name)
+            if worksheet:
+                records = worksheet.get_all_records()
+                for rec in records:
+                    if rec.get('id'):
+                        processed_ids.add(str(rec['id']))
+        except Exception as e:
+            st.sidebar.error(f"Error loading from Google Sheets: {e}")
+    else:
+        # Load from local file
+        output_file = get_output_file(annotator_name)
+        if output_file and os.path.exists(output_file):
+            with open(output_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            rec = json.loads(line)
+                            processed_ids.add(rec.get("id"))
+                        except:
+                            pass
+
     return processed_ids
 
 
@@ -115,8 +215,8 @@ if 'current_index' not in st.session_state:
 
 
 def save_result(record, human_reason_score, human_answer_score, human_comment, task_type, annotator_name):
-    output_file = get_output_file(annotator_name)
-    if not output_file:
+    """Save result to Google Sheets or local file"""
+    if not annotator_name:
         st.error("请先输入标注者姓名！")
         return False
 
@@ -131,20 +231,55 @@ def save_result(record, human_reason_score, human_answer_score, human_comment, t
         "original_record": record
     }
 
-    # Append to file
-    with open(output_file, 'a', encoding='utf-8') as f:
-        f.write(json.dumps(result_entry, ensure_ascii=False) + "\n")
+    try:
+        if USE_GSHEETS and gsheet:
+            # Save to Google Sheets
+            worksheet = get_or_create_worksheet(annotator_name)
+            if worksheet:
+                # Append row with data
+                worksheet.append_row([
+                    str(record.get("id")),
+                    annotator_name,
+                    human_reason_score,
+                    human_answer_score,
+                    human_reason_score + human_answer_score,
+                    task_type,
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    record.get("response", "")[:500],  # Truncate long text
+                    record.get("ground_truth", "")[:200],
+                    record.get("question", "")[:200]
+                ])
+                st.success(
+                    f"✅ 已保存到 Google Sheets - ID {record.get('id')} (标注者: {annotator_name})")
+            else:
+                st.error("无法连接到 Google Sheets")
+                return False
+        else:
+            # Save to local file
+            output_file = get_output_file(annotator_name)
+            if not output_file:
+                st.error("无法创建输出文件")
+                return False
 
-    # Update processed set
-    processed_ids.add(record.get("id"))
-    st.success(f"✅ 已保存记录 ID {record.get('id')} (标注者: {annotator_name})")
+            with open(output_file, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(result_entry, ensure_ascii=False) + "\n")
 
-    # Auto-advance to next unprocessed
-    if st.session_state.current_index < len(data) - 1:
-        st.session_state.current_index += 1
-        st.rerun()
+            st.success(
+                f"✅ 已保存到本地文件 - ID {record.get('id')} (标注者: {annotator_name})")
 
-    return True
+        # Update processed set
+        processed_ids.add(record.get("id"))
+
+        # Auto-advance to next unprocessed
+        if st.session_state.current_index < len(data) - 1:
+            st.session_state.current_index += 1
+            st.rerun()
+
+        return True
+
+    except Exception as e:
+        st.error(f"保存失败: {e}")
+        return False
 
 # Helper to detect task type
 
@@ -199,9 +334,13 @@ if annotator_input != st.session_state.annotator_name:
 
 # Display annotator file info
 if st.session_state.annotator_name:
-    output_file = get_output_file(st.session_state.annotator_name)
     st.sidebar.success(f"✓ 当前标注者: **{st.session_state.annotator_name}**")
-    st.sidebar.caption(f"保存文件: `{os.path.basename(output_file)}`")
+    if USE_GSHEETS and gsheet:
+        st.sidebar.caption(f"☁️ 云端存储: Google Sheets")
+        st.sidebar.caption(f"表格: `{GSHEET_NAME}`")
+    else:
+        output_file = get_output_file(st.session_state.annotator_name)
+        st.sidebar.caption(f"💾 本地存储: `{os.path.basename(output_file)}`")
 else:
     st.sidebar.warning("⚠️ 请先输入姓名才能开始标注")
 
@@ -233,27 +372,49 @@ if processed_count > 1 and st.session_state.annotator_name:
     st.sidebar.markdown("---")
     st.sidebar.subheader("📈 实时统计")
     try:
-        output_file = get_output_file(st.session_state.annotator_name)
         results = []
-        if output_file and os.path.exists(output_file):
-            with open(output_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if line.strip():
-                        results.append(json.loads(line))
+
+        if USE_GSHEETS and gsheet:
+            # Load from Google Sheets
+            worksheet = get_or_create_worksheet(
+                st.session_state.annotator_name)
+            if worksheet:
+                records = worksheet.get_all_records()
+                for rec in records:
+                    if rec.get('id'):
+                        # Convert to the format expected by statistics
+                        results.append({
+                            'human_total_score': rec.get('total_score', 0),
+                            'original_record': {
+                                'total_score': 0  # We don't have LLM score in sheets yet
+                            }
+                        })
+        else:
+            # Load from local file
+            output_file = get_output_file(st.session_state.annotator_name)
+            if output_file and os.path.exists(output_file):
+                with open(output_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        if line.strip():
+                            results.append(json.loads(line))
+
         if results:
             df = pd.DataFrame(results)
-            df['llm_total_score'] = df['original_record'].apply(lambda x: float(
-                x.get('total_score', 0)) if x.get('total_score') is not None else 0.0)
 
             # Display average scores
             avg_human = df['human_total_score'].mean()
-            avg_llm = df['llm_total_score'].mean()
             st.sidebar.metric("平均人工评分", f"{avg_human:.2f}")
-            st.sidebar.metric("平均LLM评分", f"{avg_llm:.2f}")
 
-            if len(df) > 1:
-                corr = df['human_total_score'].corr(df['llm_total_score'])
-                st.sidebar.metric("相关系数", f"{corr:.4f}")
+            # Only show LLM stats for local mode (has original_record)
+            if not USE_GSHEETS and 'original_record' in df.columns:
+                df['llm_total_score'] = df['original_record'].apply(lambda x: float(
+                    x.get('total_score', 0)) if isinstance(x, dict) and x.get('total_score') is not None else 0.0)
+                avg_llm = df['llm_total_score'].mean()
+                st.sidebar.metric("平均LLM评分", f"{avg_llm:.2f}")
+
+                if len(df) > 1:
+                    corr = df['human_total_score'].corr(df['llm_total_score'])
+                    st.sidebar.metric("相关系数", f"{corr:.4f}")
     except Exception as e:
         st.sidebar.error(f"统计错误: {e}")
 

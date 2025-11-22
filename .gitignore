@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Streamlit
+.streamlit/secrets.toml
+.streamlit/credentials.json
+
+# Google Cloud credentials
+*-credentials.json
+service-account*.json
+
+# Results (标注结果文件不上传到GitHub，由标注者本地生成)
+human_eval_results/
+
+# 但保留源数据文件（取消忽略）
+!100_*.jsonl
+!geoqa_reason/*.jsonl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
